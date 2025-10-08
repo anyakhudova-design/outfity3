@@ -1,0 +1,80 @@
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a//dev/null b/load-test.js
+index 0000000000000000000000000000000000000000..ccd1efd427679c2ff89137ef255c73e62edd94c1 100755
+--- a//dev/null
++++ b/load-test.js
+@@ -0,0 +1,71 @@
++#!/usr/bin/env node
++const { performance } = require('node:perf_hooks');
++const { URL } = require('node:url');
++
++const target = process.argv[2] ?? 'http://127.0.0.1:8000/';
++const durationMs = Number.parseInt(process.argv[3] ?? '10000', 10);
++const concurrency = Number.parseInt(process.argv[4] ?? '25', 10);
++
++if (Number.isNaN(durationMs) || Number.isNaN(concurrency)) {
++  console.error('Usage: node load-test.js <url> <durationMs> <concurrency>');
++  process.exit(1);
++}
++
++try {
++  // Validate URL early to fail fast on invalid input
++  new URL(target);
++} catch (error) {
++  console.error(`Invalid URL: ${target}`);
++  process.exit(1);
++}
++
++async function run() {
++  const startTime = performance.now();
++  const endTime = startTime + durationMs;
++  let completed = 0;
++  let failed = 0;
++  let totalLatency = 0;
++  let minLatency = Number.POSITIVE_INFINITY;
++  let maxLatency = 0;
++
++  async function worker() {
++    while (performance.now() < endTime) {
++      const requestStart = performance.now();
++      try {
++        const response = await fetch(target, { cache: 'no-store' });
++        await response.arrayBuffer();
++        const latency = performance.now() - requestStart;
++        completed += 1;
++        totalLatency += latency;
++        if (latency < minLatency) minLatency = latency;
++        if (latency > maxLatency) maxLatency = latency;
++      } catch (error) {
++        failed += 1;
++      }
++    }
++  }
++
++  const workers = Array.from({ length: concurrency }, () => worker());
++  await Promise.all(workers);
++
++  const totalTime = (performance.now() - startTime) / 1000;
++  const avgLatency = completed ? totalLatency / completed : 0;
++  const requestsPerSecond = completed / totalTime;
++
++  console.log('Load test results:');
++  console.log(`  Target URL:       ${target}`);
++  console.log(`  Duration:         ${durationMs} ms`);
++  console.log(`  Concurrency:      ${concurrency}`);
++  console.log(`  Total time:       ${totalTime.toFixed(2)} s`);
++  console.log(`  Completed:        ${completed}`);
++  console.log(`  Failed:           ${failed}`);
++  console.log(`  Requests/sec:     ${requestsPerSecond.toFixed(2)}`);
++  console.log(`  Avg latency:      ${avgLatency.toFixed(2)} ms`);
++  console.log(`  Min latency:      ${Number.isFinite(minLatency) ? minLatency.toFixed(2) : 'n/a'} ms`);
++  console.log(`  Max latency:      ${maxLatency.toFixed(2)} ms`);
++}
++
++run().catch((error) => {
++  console.error('Load test failed:', error);
++  process.exit(1);
++});
+ 
+EOF
+)
