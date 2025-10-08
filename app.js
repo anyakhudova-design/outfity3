@@ -56,7 +56,7 @@ function buildSuggestion({ tMid, wMax, hMean, rain }, gender){
 }
 
 async function fetchDaily(lat, lon){
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_sum,relative_humidity_2m_mean&forecast_days=2&timezone=auto`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,windspeed_10m_max,precipitation_sum,relative_humidity_2m_mean&forecast_days=2&timezone=auto`;
   const r = await fetch(url);
   if(!r.ok) throw new Error('weather fetch failed');
   return await r.json();
@@ -66,7 +66,7 @@ function pickDay(daily, idx){
   // idx: 0 today, 1 tomorrow
   const tmax = daily.temperature_2m_max?.[idx];
   const tmin = daily.temperature_2m_min?.[idx];
-  const wmax = daily.wind_speed_10m_max?.[idx];
+  const wmax = daily.windspeed_10m_max?.[idx];
   const rh = daily.relative_humidity_2m_mean?.[idx];
   const pr = daily.precipitation_sum?.[idx];
 
